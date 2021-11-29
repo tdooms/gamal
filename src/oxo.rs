@@ -1,7 +1,6 @@
-use crate::state::{GameState, Strategy};
-use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt::{Display, Formatter};
-use std::thread::current;
+
+use crate::state::{GameState, Strategy};
 
 #[derive(Clone, Copy, PartialEq, PartialOrd, Debug, Hash, Eq)]
 enum Piece {
@@ -36,51 +35,28 @@ impl Display for OxoState {
             Some((Piece::Large, Player::Black)) => "lb",
         };
 
-        writeln!(
-            f,
-            "Small: {:?}, Medium: {:?}, Large: {:?}",
-            self.pieces[0][0], self.pieces[0][1], self.pieces[0][2]
-        )?;
-        writeln!(f)?;
-        writeln!(
-            f,
-            "\t\t  {} {} {}",
-            piece_fmt(self.squares[0]),
-            piece_fmt(self.squares[1]),
-            piece_fmt(self.squares[2])
-        )?;
-        writeln!(
-            f,
-            "\t\t  {} {} {}",
-            piece_fmt(self.squares[3]),
-            piece_fmt(self.squares[4]),
-            piece_fmt(self.squares[5])
-        )?;
-        writeln!(
-            f,
-            "\t\t  {} {} {}",
-            piece_fmt(self.squares[6]),
-            piece_fmt(self.squares[7]),
-            piece_fmt(self.squares[8])
-        )?;
-        writeln!(f)?;
-        writeln!(
-            f,
-            "Small: {:?}, Medium: {:?}, Large: {:?}",
-            self.pieces[1][0], self.pieces[1][1], self.pieces[1][2]
-        )
+        let squares = self.squares.map(piece_fmt);
+
+        for (idx, row) in squares.chunks(3).enumerate() {
+            writeln!(
+                f,
+                "{}   {} {} {}   {}",
+                self.pieces[0][idx], row[0], row[1], row[2], self.pieces[1][idx]
+            )?;
+        }
+        Ok(())
     }
 }
 
 impl OxoState {
-    pub fn modify(&self, idx: usize, piece: Piece) -> Option<Self> {
+    fn modify(&self, idx: usize, piece: Piece) -> Option<Self> {
         if self.pieces[self.turn as usize][piece as usize] == 0 {
             return None;
         }
 
         match self.squares[idx] {
             None => (),
-            Some((old, player)) if player != self.turn && piece <= old => return None,
+            Some((old, player)) if player == self.turn || piece <= old => return None,
             Some(_) => return None,
         }
 
@@ -97,7 +73,7 @@ impl OxoState {
     }
 }
 
-impl GameState<i64> for OxoState {
+impl GameState for OxoState {
     fn start() -> Self {
         Self {
             squares: [None; 9],
@@ -106,7 +82,7 @@ impl GameState<i64> for OxoState {
         }
     }
 
-    fn done(&self) -> Option<i64> {
+    fn done(&self) -> Option<f64> {
         const LINES: [[usize; 3]; 8] = [
             [0, 1, 2],
             [3, 4, 5],
@@ -118,30 +94,30 @@ impl GameState<i64> for OxoState {
             [2, 4, 6],
         ];
 
-        let all_same = |line: [], player| {
+        let all_same = |line: [usize; 3], player| {
             line.iter()
                 .all(|idx| self.squares[*idx].map(|x| x.1) == Some(player))
         };
 
         for line in LINES {
             if all_same(line, Player::White) {
-                return Some(1);
+                return Some(1.);
             } else if all_same(line, Player::Black) {
-                return Some(-1);
+                return Some(-1.);
             }
         }
         None
     }
 
-    fn heuristic(&self) -> i64 {
+    fn heuristic(&self) -> f64 {
         // TODO: something smart
-        0
+        0.0
     }
 
     fn strategy(&self) -> Strategy {
         match self.turn {
             Player::White => Strategy::Max,
-            Player::Black => Strategy::MinAvg,
+            Player::Black => Strategy::Min,
         }
     }
 
